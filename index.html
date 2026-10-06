@@ -1,0 +1,2682 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>연구지도 예산관리</title>
+  <meta name="description" content="연구팀 예산 사용 현황 및 집행 관리 대시보드">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- PDF.js CDN for client-side PDF text extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+  </script>
+  <style>
+    /* ===== RESET & BASE ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --bg-card: rgba(30, 41, 59, 0.7);
+      --bg-card-hover: rgba(51, 65, 85, 0.6);
+      --bg-glass: rgba(255, 255, 255, 0.03);
+      --border: rgba(148, 163, 184, 0.12);
+      --border-hover: rgba(148, 163, 184, 0.25);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent: #818cf8;
+      --accent-dark: #6366f1;
+      --accent-glow: rgba(129, 140, 248, 0.15);
+      --success: #34d399;
+      --success-bg: rgba(52, 211, 153, 0.1);
+      --warning: #fbbf24;
+      --warning-bg: rgba(251, 191, 36, 0.1);
+      --danger: #f87171;
+      --danger-bg: rgba(248, 113, 113, 0.1);
+      --info: #38bdf8;
+      --info-bg: rgba(56, 189, 248, 0.1);
+      --sidebar-w: 260px;
+      --header-h: 60px;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --radius-xs: 6px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.3);
+      --shadow-lg: 0 8px 40px rgba(0,0,0,0.4);
+      --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      --font: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+      /* category colors */
+      --cat-materials: #818cf8;
+      --cat-food: #fb923c;
+      --cat-consulting: #34d399;
+      --cat-4: #38bdf8;
+      --cat-5: #ec4899;
+      --cat-6: #a855f7;
+      --cat-7: #f43f5e;
+      --cat-8: #eab308;
+    }
+
+    html { font-size: 14px; }
+    body {
+      font-family: var(--font);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* ===== SIDEBAR ===== */
+    .sidebar {
+      position: fixed;
+      top: 0; left: 0;
+      width: var(--sidebar-w);
+      height: 100vh;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      transition: transform var(--transition);
+    }
+
+    .sidebar-logo {
+      padding: 24px 24px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-logo h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.02em;
+    }
+    .sidebar-logo .subtitle {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .nav-menu {
+      list-style: none;
+      padding: 16px 12px;
+      flex: 1;
+    }
+    .nav-menu li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: var(--text-secondary);
+      font-weight: 500;
+      font-size: 0.92rem;
+      transition: all var(--transition);
+      margin-bottom: 4px;
+      user-select: none;
+    }
+    .nav-menu li:hover {
+      background: var(--bg-glass);
+      color: var(--text-primary);
+    }
+    .nav-menu li.active {
+      background: var(--accent-glow);
+      color: var(--accent);
+    }
+    .nav-menu li .nav-icon {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    .sidebar-summary {
+      margin: 0 16px 14px;
+      padding: 14px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .sidebar-summary-title {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .sidebar-stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .sidebar-stat {
+      min-width: 0;
+      padding: 8px;
+      background: rgba(255,255,255,0.025);
+      border-radius: var(--radius-xs);
+    }
+    .sidebar-stat .label {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+    }
+    .sidebar-stat .value {
+      font-size: 0.88rem;
+      color: var(--text-primary);
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ===== MAIN LAYOUT ===== */
+    .main-wrap {
+      margin-left: var(--sidebar-w);
+      min-height: 100vh;
+    }
+
+    .page-header {
+      position: sticky;
+      top: 0;
+      height: var(--header-h);
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 50;
+    }
+    .page-header h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .header-actions { display: flex; gap: 10px; }
+
+    .main-content {
+      padding: 18px 24px 24px;
+      max-width: 1600px;
+    }
+
+    .view { display: none; animation: fadeIn 0.35s ease; }
+    .view.active { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ===== BUTTONS ===== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: var(--radius-xs);
+      border: none;
+      font-family: var(--font);
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-dark), var(--accent));
+      color: #fff;
+      box-shadow: 0 2px 12px rgba(99, 102, 241, 0.3);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--bg-card-hover); }
+    .btn-danger {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border: 1px solid rgba(248,113,113,0.2);
+    }
+    .btn-danger:hover { background: rgba(248,113,113,0.2); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+      padding: 8px 12px;
+    }
+    .btn-ghost:hover { color: var(--text-primary); background: var(--bg-glass); }
+    .btn-sm { padding: 6px 14px; font-size: 0.82rem; }
+    .btn-icon {
+      width: 36px; height: 36px;
+      padding: 0; display: flex; align-items: center; justify-content: center;
+      border-radius: var(--radius-xs);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .btn-icon:hover { color: var(--text-primary); border-color: var(--border-hover); }
+
+    /* ===== SUMMARY CARDS ===== */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+    .summary-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      transition: all var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+    .summary-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .summary-card:nth-child(1)::before { background: linear-gradient(90deg, var(--accent), #a78bfa); }
+    .summary-card:nth-child(2)::before { background: linear-gradient(90deg, var(--info), #7dd3fc); }
+    .summary-card:nth-child(3)::before { background: linear-gradient(90deg, var(--success), #6ee7b7); }
+    .summary-card:nth-child(4)::before { background: linear-gradient(90deg, var(--warning), #fde68a); }
+    .summary-card:hover { transform: translateY(-2px); border-color: var(--border-hover); }
+    .summary-card .label {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+      margin-bottom: 10px;
+    }
+    .summary-card .value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .summary-card .sub {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* ===== TEAM CARDS GRID ===== */
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .team-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      transition: all var(--transition);
+      cursor: pointer;
+      min-width: 0;
+    }
+    .team-card:hover { transform: translateY(-3px); border-color: var(--border-hover); box-shadow: var(--shadow); }
+    .team-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .team-card-header > div {
+      min-width: 0;
+    }
+    .team-card-header .team-name {
+      display: block;
+      font-size: 0.95rem;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .team-members {
+      margin-top: 3px;
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      font-weight: 400;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .team-card-header .badge {
+      flex: 0 0 auto;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 999px;
+      letter-spacing: 0.02em;
+    }
+    .badge-exhibition { background: rgba(129,140,248,0.15); color: var(--accent); }
+    .badge-rne { background: rgba(56,189,248,0.15); color: var(--info); }
+    .badge-steam { background: rgba(52,211,153,0.15); color: var(--success); }
+
+    .team-card-totals {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      padding: 8px 10px;
+      background: var(--bg-glass);
+      border-radius: var(--radius-sm);
+    }
+    .team-total-item { min-width: 0; text-align: center; }
+    .team-total-item.t-arrow { display: none; }
+    .team-total-item .t-label { font-size: 0.66rem; color: var(--text-muted); margin-bottom: 2px; }
+    .team-total-item .t-value {
+      font-size: 0.9rem;
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Budget detail rows: show category / budget / spent / balance */
+    .budget-detail-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    .budget-detail-table th:first-child,
+    .budget-detail-table td:first-child { width: 34%; }
+    .budget-detail-table th:not(:first-child),
+    .budget-detail-table td:not(:first-child) { width: 22%; }
+    .budget-detail-table thead th {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      padding: 0 0 5px 0;
+      text-align: right;
+      text-transform: none;
+      letter-spacing: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .budget-detail-table thead th:first-child { text-align: left; }
+    .budget-detail-table tbody td {
+      padding: 5px 0;
+      font-size: 0.76rem;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      border-bottom: none;
+      white-space: nowrap;
+    }
+    .budget-detail-table tbody td:first-child {
+      text-align: left;
+      font-weight: 500;
+      color: var(--text-secondary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .budget-detail-table tbody tr:last-child td { padding-bottom: 0; }
+    .balance-amount {
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.76rem;
+    }
+    .balance-ok { color: var(--success); background: rgba(52,211,153,0.08); }
+    .balance-warn { color: var(--warning); background: rgba(251,191,36,0.08); }
+    .balance-over { color: var(--danger); background: rgba(248,113,113,0.1); }
+
+    /* ===== TABLE ===== */
+    .table-wrap {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .table-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .filters { display: flex; gap: 10px; flex-wrap: wrap; }
+    .filter-select, .filter-input {
+      padding: 8px 14px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xs);
+      color: var(--text-primary);
+      font-family: var(--font);
+      font-size: 0.84rem;
+      outline: none;
+      transition: border-color var(--transition);
+    }
+    .filter-select:focus, .filter-input:focus { border-color: var(--accent); }
+    .filter-select option { background: var(--bg-secondary); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    thead th {
+      text-align: left;
+      padding: 14px 16px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody td {
+      padding: 14px 16px;
+      font-size: 0.88rem;
+      border-bottom: 1px solid rgba(148,163,184,0.06);
+      white-space: nowrap;
+    }
+    tbody tr { transition: background var(--transition); }
+    tbody tr:hover { background: var(--bg-glass); }
+    tbody tr:last-child td { border-bottom: none; }
+    .amount { font-variant-numeric: tabular-nums; font-weight: 500; }
+    .amount.positive { color: var(--success); }
+    .amount.negative { color: var(--danger); }
+    .cell-actions { display: flex; gap: 6px; }
+    .cat-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.4; }
+    .empty-state p { font-size: 0.92rem; }
+
+    /* ===== UPLOAD ZONE ===== */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 60px 40px;
+      text-align: center;
+      transition: all var(--transition);
+      cursor: pointer;
+      background: var(--bg-card);
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+    }
+    .upload-zone .upload-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.6; }
+    .upload-zone h3 { font-size: 1.1rem; margin-bottom: 8px; }
+    .upload-zone p { font-size: 0.85rem; color: var(--text-muted); }
+
+    .file-list {
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      transition: all var(--transition);
+    }
+    .file-item:hover { border-color: var(--border-hover); }
+    .file-icon { font-size: 1.5rem; }
+    .file-info { flex: 1; }
+    .file-info .file-name { font-weight: 500; font-size: 0.9rem; }
+    .file-info .file-meta { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* ===== REPORT ===== */
+    .report-controls {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .report-preview {
+      background: #fff;
+      color: #111;
+      border-radius: var(--radius);
+      padding: 40px;
+      font-size: 0.9rem;
+      line-height: 1.7;
+      max-width: 900px;
+    }
+    .report-preview h3 {
+      text-align: center;
+      font-size: 1.3rem;
+      margin-bottom: 24px;
+      border-bottom: 2px solid #111;
+      padding-bottom: 12px;
+    }
+    .report-preview table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 16px 0;
+    }
+    .report-preview th, .report-preview td {
+      border: 1px solid #333;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      text-align: center;
+      color: #111;
+    }
+    .report-preview th {
+      background: #e5e7eb;
+      font-weight: 600;
+      text-transform: none;
+      letter-spacing: normal;
+    }
+    .report-preview td.text-left { text-align: left; }
+    .report-preview td.text-right { text-align: right; }
+    .report-preview .report-footer {
+      margin-top: 32px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .report-empty {
+      text-align: center;
+      padding: 60px;
+      color: var(--text-muted);
+    }
+
+    /* ===== SETTINGS ===== */
+    .settings-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .settings-section h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .budget-edit-table { width: 100%; border-collapse: collapse; }
+    .budget-edit-table th, .budget-edit-table td {
+      padding: 10px 14px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+    .budget-edit-table th {
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: none;
+      letter-spacing: normal;
+    }
+    .budget-edit-table input {
+      width: 110px;
+      padding: 8px 10px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xs);
+      color: var(--text-primary);
+      font-family: var(--font);
+      font-size: 0.85rem;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .budget-edit-table input:focus { outline: none; border-color: var(--accent); }
+    .data-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+    /* ===== MODAL ===== */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.active { display: flex; animation: fadeIn 0.2s ease; }
+    .modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      width: 100%;
+      max-width: 560px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+    }
+    .modal h3 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xs);
+      color: var(--text-primary);
+      font-family: var(--font);
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color var(--transition);
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      border-color: var(--accent);
+    }
+    .form-group select option { background: var(--bg-secondary); }
+    .form-group textarea { resize: vertical; min-height: 70px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+
+    /* ===== DETAIL MODAL ===== */
+    .detail-section { margin-bottom: 20px; }
+    .detail-section h4 {
+      font-size: 0.88rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text-secondary);
+    }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+    .detail-item {
+      background: var(--bg-glass);
+      padding: 12px 14px;
+      border-radius: var(--radius-xs);
+    }
+    .detail-item .d-label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
+    .detail-item .d-value { font-size: 1rem; font-weight: 600; }
+
+    /* ===== TOAST ===== */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .toast {
+      padding: 14px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: #fff;
+      box-shadow: var(--shadow);
+      animation: slideInRight 0.3s ease;
+      max-width: 360px;
+    }
+    .toast.success { background: linear-gradient(135deg, #059669, #34d399); }
+    .toast.error { background: linear-gradient(135deg, #dc2626, #f87171); }
+    .toast.info { background: linear-gradient(135deg, #0284c7, #38bdf8); }
+
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(40px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 1200px) {
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 1100px), (max-height: 760px) {
+      .main-content { padding: 14px 18px 18px; }
+      .section-title { margin-bottom: 10px; }
+      .team-grid { gap: 10px; }
+      .team-card { padding: 12px; }
+      .team-card-header { margin-bottom: 8px; }
+      .team-card-totals { margin-bottom: 8px; padding: 7px 8px; }
+      .budget-detail-table thead th { font-size: 0.62rem; padding-bottom: 3px; }
+      .budget-detail-table tbody td { font-size: 0.68rem; padding: 3px 0; }
+      .balance-amount { font-size: 0.68rem; padding: 1px 4px; }
+    }
+    @media (max-width: 900px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .main-wrap { margin-left: 0; }
+      .summary-grid { grid-template-columns: 1fr 1fr; }
+      .team-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .form-row { grid-template-columns: 1fr; }
+      .detail-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 760px) {
+      .team-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .team-card-totals { grid-template-columns: 1fr; text-align: left; }
+      .team-total-item { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+      .team-total-item.t-arrow { display: none; }
+      .team-total-item .t-label { margin-bottom: 0; }
+      .team-total-item .t-value { text-align: right; }
+    }
+    @media (max-width: 600px) {
+      .summary-grid { grid-template-columns: 1fr; }
+      .main-content { padding: 12px; }
+      .page-header { padding: 0 14px; }
+      .page-header h2 { font-size: 1.05rem; }
+    }
+    @media (max-width: 360px) {
+      .team-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ===== MISC ===== */
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--text-secondary);
+    }
+    .divider { height: 1px; background: var(--border); margin: 24px 0; }
+    .tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+    .tag-materials { background: rgba(129,140,248,0.15); color: var(--cat-materials); }
+    .tag-food { background: rgba(251,146,60,0.15); color: var(--cat-food); }
+    .tag-consulting { background: rgba(52,211,153,0.15); color: var(--cat-consulting); }
+    .tag-cat-4 { background: rgba(56,189,248,0.15); color: var(--cat-4); }
+    .tag-cat-5 { background: rgba(236,72,153,0.15); color: var(--cat-5); }
+    .tag-cat-6 { background: rgba(168,85,247,0.15); color: var(--cat-6); }
+    .tag-cat-7 { background: rgba(244,63,94,0.15); color: var(--cat-7); }
+    .tag-cat-8 { background: rgba(234,179,8,0.15); color: var(--cat-8); }
+    .mobile-menu-btn {
+      display: none;
+      background: none; border: none;
+      color: var(--text-primary); font-size: 1.4rem; cursor: pointer;
+    }
+    @media (max-width: 900px) { .mobile-menu-btn { display: block; } }
+    .confirm-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+      z-index: 250; align-items: center; justify-content: center;
+    }
+    .confirm-overlay.active { display: flex; }
+    .confirm-box {
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 28px; max-width: 400px; text-align: center;
+    }
+    .confirm-box p { margin-bottom: 20px; font-size: 0.95rem; }
+    .confirm-actions { display: flex; gap: 10px; justify-content: center; }
+  </style>
+</head>
+<body>
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <h1>연구지도 예산관리</h1>
+      <div class="subtitle">충북과학고등학교</div>
+    </div>
+    <ul class="nav-menu">
+      <li class="active" data-view="dashboard" id="nav-dashboard">
+        <span class="nav-icon">📊</span> 대시보드
+      </li>
+      <li data-view="expenses" id="nav-expenses">
+        <span class="nav-icon">💰</span> 지출내역
+      </li>
+      <li data-view="upload" id="nav-upload">
+        <span class="nav-icon">📁</span> 파일 업로드
+      </li>
+      <li data-view="reports" id="nav-reports">
+        <span class="nav-icon">📄</span> 정산서
+      </li>
+      <li data-view="settings" id="nav-settings">
+        <span class="nav-icon">⚙️</span> 설정
+      </li>
+    </ul>
+    <div class="sidebar-summary" id="sidebar-summary"></div>
+    <div class="sidebar-footer">v1.0 · 2026</div>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main-wrap">
+    <header class="page-header">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+        <h2 id="page-title">대시보드</h2>
+      </div>
+      <div class="header-actions" id="header-actions"></div>
+    </header>
+
+    <div class="main-content">
+
+      <!-- ===== DASHBOARD VIEW ===== -->
+      <section class="view active" id="view-dashboard">
+        <h3 class="section-title">팀별 예산 현황</h3>
+        <div class="team-grid" id="team-grid"></div>
+      </section>
+
+      <!-- ===== EXPENSES VIEW ===== -->
+      <section class="view" id="view-expenses">
+        <div class="table-wrap">
+          <div class="table-toolbar">
+            <div class="filters">
+              <select class="filter-select" id="filter-team">
+                <option value="">전체 팀</option>
+              </select>
+              <select class="filter-select" id="filter-category">
+                <option value="">전체 항목</option>
+                <option value="실험재료비">실험재료비</option>
+                <option value="식비">식비</option>
+                <option value="컨설팅비">컨설팅비</option>
+              </select>
+              <input type="text" class="filter-input" id="filter-search" placeholder="검색..." style="width:160px;">
+            </div>
+            <button class="btn btn-primary" onclick="openExpenseModal()">+ 지출 등록</button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>No</th>
+                  <th>품의일자</th>
+                  <th>지출일자</th>
+                  <th>예산차감팀</th>
+                  <th>항목</th>
+                  <th>적요/내역</th>
+                  <th>품의금액</th>
+                  <th>실제 지출금액</th>
+                  <th>반영금액</th>
+                  <th>첨부</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="expense-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== UPLOAD VIEW ===== -->
+      <section class="view" id="view-upload">
+        <div class="upload-zone" id="upload-zone">
+          <div class="upload-icon">📂</div>
+          <h3>품의서 / 지출결의서 파일을 여기에 끌어다 놓으세요</h3>
+          <p>또는 클릭하여 파일 선택 (PDF, HWP, Excel, 이미지 등)</p>
+          <input type="file" id="file-input" multiple style="display:none" accept=".pdf,.hwp,.xlsx,.xls,.jpg,.jpeg,.png,.doc,.docx">
+        </div>
+        <div class="file-list" id="file-list"></div>
+      </section>
+
+      <!-- ===== REPORTS VIEW ===== -->
+      <section class="view" id="view-reports">
+        <div class="report-controls">
+          <select class="filter-select" id="report-team" style="min-width:180px;">
+            <option value="">-- 팀 선택 --</option>
+          </select>
+          <select class="filter-select" id="report-period">
+            <option value="all">전체 기간</option>
+            <option value="2026-1">2026년 1학기</option>
+            <option value="2026-2">2026년 2학기</option>
+          </select>
+          <button class="btn btn-secondary" onclick="generateReport()">정산서 생성</button>
+          <button class="btn btn-secondary" onclick="printReport()">🖨 인쇄</button>
+        </div>
+        <div id="report-content">
+          <div class="report-empty">
+            <div style="font-size:3rem;margin-bottom:16px;opacity:0.4;">📄</div>
+            <p>팀을 선택하고 정산서를 생성하세요.<br>
+            <span style="font-size:0.82rem;color:var(--text-muted);">나중에 정산서 양식을 제공해주시면 맞춤 양식으로 업그레이드됩니다.</span></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== SETTINGS VIEW ===== -->
+      <section class="view" id="view-settings">
+        <div class="settings-section">
+          <h3>👥 팀 관리</h3>
+          <div style="margin-bottom:16px;">
+            <button class="btn btn-primary" onclick="openAddTeamModal()">+ 팀 추가</button>
+          </div>
+          <div id="team-manage-list"></div>
+        </div>
+        <div class="settings-section">
+          <h3>🏷️ 연구 종류별 항목 설정</h3>
+          <div id="category-manage-container"></div>
+        </div>
+        <div class="settings-section">
+          <h3>💼 팀별 예산 설정</h3>
+          <div style="overflow-x:auto;" id="budget-edit-tables-container"></div>
+          <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+            <button class="btn btn-primary" onclick="saveBudgetSettings()">예산 저장</button>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3>📦 데이터 관리</h3>
+          <div class="data-actions">
+            <button class="btn btn-secondary" onclick="exportData()">📥 JSON 내보내기</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('import-input').click()">📤 JSON 가져오기</button>
+            <input type="file" id="import-input" accept=".json" style="display:none" onchange="importData(event)">
+            <button class="btn btn-danger" onclick="confirmResetData()">🗑 데이터 초기화</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ===== EXPENSE MODAL ===== -->
+  <div class="modal-overlay" id="expense-modal-overlay">
+    <div class="modal">
+      <h3 id="expense-modal-title">지출 등록</h3>
+      <input type="hidden" id="expense-id">
+      <input type="hidden" id="expense-file-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label>품의일자 *</label>
+          <input type="date" id="exp-approval-date" required>
+        </div>
+        <div class="form-group">
+          <label>지출일자</label>
+          <input type="date" id="exp-expenditure-date">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>예산 차감팀 *</label>
+          <select id="exp-team" required></select>
+        </div>
+        <div class="form-group">
+          <label>항목 *</label>
+          <select id="exp-category" required>
+            <option value="">선택</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>적요/내역 *</label>
+        <textarea id="exp-description" placeholder="지출 내용을 입력하세요"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>품의금액 *</label>
+          <input type="number" id="exp-approved-amount" placeholder="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>실제 지출금액</label>
+          <input type="number" id="exp-actual-amount" placeholder="지출 후 입력" min="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>첨부파일</label>
+        <input type="file" id="exp-attachment" accept=".pdf,.hwp,.xlsx,.xls,.jpg,.jpeg,.png,.doc,.docx">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeExpenseModal()">취소</button>
+        <button class="btn btn-primary" onclick="saveExpense()">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TEAM DETAIL MODAL ===== -->
+  <div class="modal-overlay" id="team-detail-overlay">
+    <div class="modal" style="max-width:700px;">
+      <h3 id="team-detail-title"></h3>
+      <div id="team-detail-content"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeTeamDetail()">닫기</button>
+        <button class="btn btn-primary" onclick="goToTeamExpenses()">지출내역 보기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TEAM ADD/EDIT MODAL ===== -->
+  <div class="modal-overlay" id="team-modal-overlay">
+    <div class="modal" style="max-width:440px;">
+      <h3 id="team-modal-title">팀 추가</h3>
+      <input type="hidden" id="team-edit-id">
+      <div class="form-group">
+        <label>구분 *</label>
+        <select id="team-edit-category">
+          <option value="전람회">전람회</option>
+          <option value="RnE">RnE</option>
+          <option value="스팀클럽">스팀클럽</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>팀 이름 *</label>
+        <input type="text" id="team-edit-name" placeholder="예: 전람회 4팀">
+      </div>
+      <div class="form-group">
+        <label>팀원 이름 (최대 4명)</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px;">
+          <input type="text" id="team-edit-member-1" placeholder="팀원 1">
+          <input type="text" id="team-edit-member-2" placeholder="팀원 2">
+          <input type="text" id="team-edit-member-3" placeholder="팀원 3">
+          <input type="text" id="team-edit-member-4" placeholder="팀원 4">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeTeamModal()">취소</button>
+        <button class="btn btn-primary" onclick="saveTeamModal()">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CATEGORY ADD/EDIT MODAL ===== -->
+  <div class="modal-overlay" id="category-modal-overlay">
+    <div class="modal" style="max-width:400px;">
+      <h3 id="category-modal-title">항목 추가</h3>
+      <input type="hidden" id="cat-edit-type">
+      <input type="hidden" id="cat-old-name">
+      <div class="form-group">
+        <label>연구 종류</label>
+        <input type="text" id="cat-display-type" disabled style="background:var(--bg-secondary);opacity:0.7;">
+      </div>
+      <div class="form-group">
+        <label>항목명 *</label>
+        <input type="text" id="cat-name" placeholder="예: 수수료">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeCategoryModal()">취소</button>
+        <button class="btn btn-primary" onclick="saveCategoryModal()">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CONFIRM DIALOG ===== -->
+  <div class="confirm-overlay" id="confirm-overlay">
+    <div class="confirm-box">
+      <p id="confirm-message"></p>
+      <div class="confirm-actions">
+        <button class="btn btn-secondary" onclick="closeConfirm()">취소</button>
+        <button class="btn btn-danger" id="confirm-ok-btn">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    /* ===================================================================
+       연구지도 예산관리 앱 - JavaScript
+       =================================================================== */
+
+    // ===== DEFAULT DATA =====
+    const DEFAULT_TEAMS = [
+      { id: 't1', category: '전람회', name: '광핀셋', members: ['박서현', '최아론'], budgets: { '재료비': 1790000, '식비': 80000 } },
+      { id: 't2', category: '전람회', name: '음향', members: ['이인호', '이승민', '한재윤'], budgets: { '재료비': 1790000, '식비': 70000 } },
+      { id: 't3', category: '전람회', name: '줄타기', members: ['이혜원', '송주호', '김지훈'], budgets: { '재료비': 1790000, '식비': 70000 } },
+      { id: 't4', category: 'RnE',   name: 'RnE 1팀',   members: ['송주호', '윤상원', '오건령'], budgets: { '재료비': 1570000, '회의비': 300000, '사무용품비': 200000, '소프트웨어 활용': 450000 } },
+      { id: 't5', category: '스팀클럽', name: '스팀클럽 1팀', members: ['이우혁', '정도일'], budgets: { '재료비': 2250000, '회의비': 250000 } },
+      { id: 't6', category: '스팀클럽', name: '스팀클럽 2팀', members: ['오환희', '반영기'], budgets: { '재료비': 2250000, '회의비': 250000 } },
+      { id: 't7', category: '스팀클럽', name: '스팀클럽 3팀', members: ['최아론', '서보배'], budgets: { '재료비': 2250000, '회의비': 250000 } },
+      { id: 't8', category: '스팀클럽', name: '스팀클럽 4팀', members: ['정윤서', '여경수'], budgets: { '재료비': 2250000, '회의비': 250000 } },
+    ];
+
+    const SAMPLE_EXPENSES = [
+      { id: 'e1', approvalDate: '2026-07-10', expenditureDate: '2026-07-14', team: '음향', category: '재료비',
+        description: 'A팀 센서 구매 (온도/습도 센서 5개)', approvedAmount: 150000, actualAmount: 145000, attachmentName: '' },
+      { id: 'e2', approvalDate: '2026-07-12', expenditureDate: '', team: '스팀클럽 1팀', category: '회의비',
+        description: '스팀 1팀 회의비 결제 (회의 식대)', approvedAmount: 50000, actualAmount: 0, attachmentName: '' },
+    ];
+
+    // ===== STATE =====
+    let state = {
+      teams: [],
+      expenses: [],
+      uploadedFiles: [],
+      categories: {},
+      currentView: 'dashboard',
+      selectedTeamForDetail: null,
+    };
+
+    // ===== STORAGE =====
+    const STORAGE_KEY = 'researchBudgetApp';
+
+    function loadState() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          state.teams = parsed.teams || JSON.parse(JSON.stringify(DEFAULT_TEAMS));
+          state.expenses = parsed.expenses || [];
+          state.uploadedFiles = parsed.uploadedFiles || [];
+          state.categories = parsed.categories || {
+            '전람회': ['재료비', '식비'],
+            'RnE': ['재료비', '회의비', '사무용품비', '소프트웨어 활용'],
+            '스팀클럽': ['재료비', '회의비']
+          };
+
+          // 전람회 팀 식비 기존 오기입값(인원수*10만원) 자동 마이그레이션 (수동 수정 내역 및 지출 내역은 안전하게 유지)
+          let stateMigrated = false;
+          state.teams.forEach(team => {
+            if (team.category === '전람회' && team.budgets && team.budgets['식비'] !== undefined) {
+              const count = team.members ? team.members.length : 0;
+              const oldWrongDefault = 100000 * count;
+              if (team.budgets['식비'] === oldWrongDefault && (oldWrongDefault === 200000 || oldWrongDefault === 300000)) {
+                team.budgets['식비'] = Math.max(0, 100000 - 10000 * count);
+                stateMigrated = true;
+              }
+            }
+          });
+          if (stateMigrated) {
+            saveState();
+          }
+
+        } catch {
+          initDefaultState();
+        }
+      } else {
+        initDefaultState();
+      }
+    }
+
+    function initDefaultState() {
+      state.teams = JSON.parse(JSON.stringify(DEFAULT_TEAMS));
+      state.expenses = JSON.parse(JSON.stringify(SAMPLE_EXPENSES));
+      state.uploadedFiles = [];
+      state.categories = {
+        '전람회': ['재료비', '식비'],
+        'RnE': ['재료비', '회의비', '사무용품비', '소프트웨어 활용'],
+        '스팀클럽': ['재료비', '회의비']
+      };
+      saveState();
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        teams: state.teams,
+        expenses: state.expenses,
+        uploadedFiles: state.uploadedFiles,
+        categories: state.categories,
+      }));
+    }
+
+    // ===== UTILITIES =====
+    function fmt(n) {
+      return (n || 0).toLocaleString('ko-KR');
+    }
+    function fmtWon(n) {
+      return fmt(n) + '원';
+    }
+    function genId() {
+      return 'e' + Date.now() + Math.random().toString(36).substr(2, 5);
+    }
+    function getReflected(exp) {
+      return (exp.actualAmount && exp.actualAmount > 0) ? exp.actualAmount : exp.approvedAmount;
+    }
+    function getCatClassForType(type, cat) {
+      const cats = state.categories[type] || [];
+      const idx = cats.indexOf(cat);
+      const classes = ['materials', 'food', 'consulting', 'cat-4', 'cat-5', 'cat-6', 'cat-7', 'cat-8'];
+      return idx >= 0 ? classes[idx % classes.length] : '';
+    }
+    function getCatClassForExpense(e) {
+      const team = state.teams.find(t => t.name === e.team);
+      if (!team) return '';
+      return getCatClassForType(team.category, e.category);
+    }
+    function getBadgeClass(category) {
+      if (category === '전람회') return 'badge-exhibition';
+      if (category === 'RnE') return 'badge-rne';
+      if (category === '스팀클럽') return 'badge-steam';
+      return '';
+    }
+    function getTeamSpent(teamName, catName) {
+      return state.expenses
+        .filter(e => e.team === teamName && e.category === catName)
+        .reduce((sum, e) => sum + getReflected(e), 0);
+    }
+    function createDefaultBudgets(category, members = []) {
+      const budgets = {};
+      (state.categories[category] || []).forEach(cat => {
+        budgets[cat] = 0;
+      });
+
+      if (category === '전람회') {
+        budgets['재료비'] = 1790000;
+        budgets['식비'] = Math.max(0, 100000 - 10000 * (members ? members.length : 0));
+      } else if (category === '스팀클럽') {
+        budgets['재료비'] = 2250000;
+        budgets['회의비'] = 250000;
+      } else if (category === 'RnE') {
+        budgets['재료비'] = 1570000;
+        budgets['회의비'] = 300000;
+        budgets['사무용품비'] = 200000;
+        budgets['소프트웨어 활용'] = 450000;
+      }
+
+      return budgets;
+    }
+    function normalizeBudgets(category, members, existingBudgets = {}) {
+      const budgets = createDefaultBudgets(category, members);
+      Object.keys(budgets).forEach(cat => {
+        if (existingBudgets[cat] !== undefined) {
+          budgets[cat] = existingBudgets[cat];
+        }
+      });
+      return budgets;
+    }
+    function getTeamTotalBudget(team) {
+      const budgets = team.budgets || {};
+      const cats = state.categories[team.category] || Object.keys(budgets);
+      return cats.reduce((s, cat) => s + (parseInt(budgets[cat]) || 0), 0);
+    }
+    function getTeamTotalSpent(teamName) {
+      return state.expenses
+        .filter(e => e.team === teamName)
+        .reduce((sum, e) => sum + getReflected(e), 0);
+    }
+
+    // ===== NAVIGATION =====
+    function switchView(viewName) {
+      state.currentView = viewName;
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.getElementById('view-' + viewName).classList.add('active');
+      document.querySelectorAll('.nav-menu li').forEach(li => li.classList.remove('active'));
+      document.querySelector(`.nav-menu li[data-view="${viewName}"]`).classList.add('active');
+
+      const titles = {
+        dashboard: '대시보드',
+        expenses: '지출내역',
+        upload: '파일 업로드',
+        reports: '정산서',
+        settings: '설정',
+      };
+      document.getElementById('page-title').textContent = titles[viewName] || '';
+
+      // Render view content
+      if (viewName === 'dashboard') renderDashboard();
+      if (viewName === 'expenses') renderExpenses();
+      if (viewName === 'upload') renderUploadedFiles();
+      if (viewName === 'settings') renderSettings();
+    }
+
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+    }
+
+    // ===== DASHBOARD =====
+    function renderDashboard() {
+      renderSummary();
+      renderTeamCards();
+    }
+
+    function renderSummary() {
+      const totalBudget = state.teams.reduce((s, t) => s + getTeamTotalBudget(t), 0);
+      const totalSpent = state.expenses.reduce((s, e) => s + getReflected(e), 0);
+      const totalBalance = totalBudget - totalSpent;
+      const rate = totalBudget > 0 ? ((totalSpent / totalBudget) * 100).toFixed(1) : '0.0';
+      const expenseCount = state.expenses.length;
+
+      document.getElementById('sidebar-summary').innerHTML = `
+        <div class="sidebar-summary-title">전체 요약</div>
+        <div class="sidebar-stat-grid">
+        <div class="sidebar-stat">
+          <div class="label">총 배정예산</div>
+          <div class="value">${fmtWon(totalBudget)}</div>
+        </div>
+        <div class="sidebar-stat">
+          <div class="label">총 지출(예정)액</div>
+          <div class="value">${fmtWon(totalSpent)}</div>
+        </div>
+        <div class="sidebar-stat">
+          <div class="label">총 잔액</div>
+          <div class="value" style="color:${totalBalance >= 0 ? 'var(--success)' : 'var(--danger)'}">${fmtWon(totalBalance)}</div>
+        </div>
+        <div class="sidebar-stat">
+          <div class="label">집행률</div>
+          <div class="value">${rate}%</div>
+        </div>
+        </div>
+      `;
+    }
+
+    function renderTeamCards() {
+      const grid = document.getElementById('team-grid');
+      grid.innerHTML = state.teams.map(team => {
+        const totalBudget = getTeamTotalBudget(team);
+        const totalSpent = getTeamTotalSpent(team.name);
+        const totalBalance = totalBudget - totalSpent;
+
+        const cats = state.categories[team.category] || [];
+        const catRows = cats.map(cat => {
+          const budget = team.budgets[cat] || 0;
+          if (budget === 0) return ''; // hide categories with no budget
+          const spent = getTeamSpent(team.name, cat);
+          const balance = budget - spent;
+          const ratio = budget > 0 ? spent / budget : 0;
+          const balClass = ratio >= 1 ? 'balance-over' : ratio >= 0.8 ? 'balance-warn' : 'balance-ok';
+          const catDot = getCatClassForType(team.category, cat);
+          return `
+            <tr>
+              <td><span class="cat-dot" style="background:var(--cat-${catDot})"></span>${cat}</td>
+              <td>${fmt(budget)}</td>
+              <td>${fmt(spent)}</td>
+              <td><span class="balance-amount ${balClass}">${fmt(balance)}</span></td>
+            </tr>
+          `;
+        }).join('');
+
+        return `
+          <div class="team-card" onclick="openTeamDetail('${team.id}')">
+            <div class="team-card-header">
+              <div>
+                <span class="team-name">${team.name}</span>
+                <div class="team-members">
+                  👥 ${team.members && team.members.length > 0 ? team.members.join(', ') : '팀원 없음'}
+                </div>
+              </div>
+              <span class="badge ${getBadgeClass(team.category)}">${team.category}</span>
+            </div>
+            <div class="team-card-totals">
+              <div class="team-total-item">
+                <div class="t-label">배정</div>
+                <div class="t-value">${fmt(totalBudget)}</div>
+              </div>
+              <div class="team-total-item t-arrow">→</div>
+              <div class="team-total-item">
+                <div class="t-label">지출</div>
+                <div class="t-value" style="color:var(--info)">${fmt(totalSpent)}</div>
+              </div>
+              <div class="team-total-item t-arrow">→</div>
+              <div class="team-total-item">
+                <div class="t-label">잔액</div>
+                <div class="t-value" style="color:${totalBalance >= 0 ? 'var(--success)' : 'var(--danger)'}">${fmt(totalBalance)}</div>
+              </div>
+            </div>
+            <table class="budget-detail-table">
+              <thead><tr><th>항목</th><th>배정</th><th>지출</th><th>잔액</th></tr></thead>
+              <tbody>${catRows}</tbody>
+            </table>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ===== TEAM DETAIL MODAL =====
+    function openTeamDetail(teamId) {
+      const team = state.teams.find(t => t.id === teamId);
+      if (!team) return;
+      state.selectedTeamForDetail = team.name;
+
+      document.getElementById('team-detail-title').textContent = team.name + ' 상세 현황';
+
+      const cats = state.categories[team.category] || [];
+      const detailGrid = cats.map(cat => {
+        const budget = team.budgets[cat] || 0;
+        const spent = getTeamSpent(team.name, cat);
+        const balance = budget - spent;
+        return `
+          <div class="detail-item">
+            <div class="d-label">${cat} 예산</div>
+            <div class="d-value">${fmtWon(budget)}</div>
+          </div>
+          <div class="detail-item">
+            <div class="d-label">${cat} 지출</div>
+            <div class="d-value" style="color:var(--info)">${fmtWon(spent)}</div>
+          </div>
+          <div class="detail-item">
+            <div class="d-label">${cat} 잔액</div>
+            <div class="d-value" style="color:${balance >= 0 ? 'var(--success)' : 'var(--danger)'}">${fmtWon(balance)}</div>
+          </div>
+        `;
+      }).join('');
+
+      const teamExpenses = state.expenses.filter(e => e.team === team.name);
+      let expTable = '';
+      if (teamExpenses.length > 0) {
+        const rows = teamExpenses.map((e, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${e.approvalDate}</td>
+            <td><span class="tag tag-${getCatClassForExpense(e)}">${e.category}</span></td>
+            <td class="text-left" style="white-space:normal;max-width:200px;">${e.description}</td>
+            <td class="amount">${fmt(getReflected(e))}</td>
+          </tr>
+        `).join('');
+        expTable = `
+          <div class="detail-section" style="margin-top:20px;">
+            <h4>최근 지출내역</h4>
+            <div style="overflow-x:auto;">
+              <table>
+                <thead><tr><th>No</th><th>일자</th><th>항목</th><th>내역</th><th>반영금액</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      } else {
+        expTable = '<div class="empty-state" style="padding:30px;"><p>아직 지출 내역이 없습니다.</p></div>';
+      }
+
+      document.getElementById('team-detail-content').innerHTML = `
+        <div class="detail-section">
+          <h4>항목별 예산 현황</h4>
+          <div class="detail-grid">${detailGrid}</div>
+        </div>
+        ${expTable}
+      `;
+
+      document.getElementById('team-detail-overlay').classList.add('active');
+    }
+
+    function closeTeamDetail() {
+      document.getElementById('team-detail-overlay').classList.remove('active');
+    }
+
+    function goToTeamExpenses() {
+      closeTeamDetail();
+      switchView('expenses');
+      if (state.selectedTeamForDetail) {
+        document.getElementById('filter-team').value = state.selectedTeamForDetail;
+        renderExpenses();
+      }
+    }
+
+    // ===== EXPENSES =====
+    function renderExpenses() {
+      populateTeamFilter();
+      populateCategoryFilter();
+      const tbody = document.getElementById('expense-tbody');
+      let filtered = [...state.expenses];
+
+      const teamFilter = document.getElementById('filter-team').value;
+      const catFilter = document.getElementById('filter-category').value;
+      const searchFilter = document.getElementById('filter-search').value.toLowerCase();
+
+      if (teamFilter) filtered = filtered.filter(e => e.team === teamFilter);
+      if (catFilter) filtered = filtered.filter(e => e.category === catFilter);
+      if (searchFilter) filtered = filtered.filter(e =>
+        e.description.toLowerCase().includes(searchFilter) ||
+        e.team.toLowerCase().includes(searchFilter)
+      );
+
+      // Sort by date descending
+      filtered.sort((a, b) => (b.approvalDate || '').localeCompare(a.approvalDate || ''));
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">💰</div><p>등록된 지출 내역이 없습니다.</p></div></td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map((e, i) => {
+        const reflected = getReflected(e);
+        const catClass = getCatClassForExpense(e);
+        return `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${e.approvalDate || '-'}</td>
+            <td>${e.expenditureDate || '-'}</td>
+            <td>${e.team}</td>
+            <td><span class="tag tag-${catClass}">${e.category}</span></td>
+            <td style="max-width:200px;white-space:normal;">${e.description}</td>
+            <td class="amount">${fmt(e.approvedAmount)}</td>
+            <td class="amount">${e.actualAmount ? fmt(e.actualAmount) : '-'}</td>
+            <td class="amount" style="font-weight:700;color:var(--accent);">${fmt(reflected)}</td>
+            <td>${e.attachmentName ? '📎' : ''}</td>
+            <td>
+              <div class="cell-actions">
+                <button class="btn-icon" onclick="editExpense('${e.id}')" title="수정">✏️</button>
+                <button class="btn-icon" onclick="confirmDeleteExpense('${e.id}')" title="삭제">🗑</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function populateTeamFilter() {
+      const select = document.getElementById('filter-team');
+      const current = select.value;
+      const opts = '<option value="">전체 팀</option>' +
+        state.teams.map(t => `<option value="${t.name}" ${t.name === current ? 'selected' : ''}>${t.name}</option>`).join('');
+      select.innerHTML = opts;
+    }
+
+    function populateCategoryFilter() {
+      const select = document.getElementById('filter-category');
+      const current = select.value;
+      const allCats = new Set();
+      Object.values(state.categories).forEach(cats => {
+        cats.forEach(c => allCats.add(c));
+      });
+      const opts = '<option value="">전체 항목</option>' +
+        Array.from(allCats).map(c => `<option value="${c}" ${c === current ? 'selected' : ''}>${c}</option>`).join('');
+      select.innerHTML = opts;
+    }
+
+    // ===== EXPENSE MODAL =====
+    function openExpenseModal(id) {
+      document.getElementById('expense-modal-title').textContent = id ? '지출 수정' : '지출 등록';
+      document.getElementById('expense-id').value = id || '';
+      document.getElementById('expense-file-id').value = '';
+
+      // Populate team select
+      const teamSelect = document.getElementById('exp-team');
+      teamSelect.innerHTML = '<option value="">선택</option>' +
+        state.teams.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+
+      if (id) {
+        const exp = state.expenses.find(e => e.id === id);
+        if (exp) {
+          document.getElementById('exp-approval-date').value = exp.approvalDate || '';
+          document.getElementById('exp-expenditure-date').value = exp.expenditureDate || '';
+          document.getElementById('exp-team').value = exp.team;
+          populateExpenseCategorySelect(exp.team, exp.category);
+          document.getElementById('exp-description').value = exp.description;
+          document.getElementById('exp-approved-amount').value = exp.approvedAmount || '';
+          document.getElementById('exp-actual-amount').value = exp.actualAmount || '';
+        }
+      } else {
+        document.getElementById('exp-approval-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('exp-expenditure-date').value = '';
+        document.getElementById('exp-team').value = '';
+        populateExpenseCategorySelect('');
+        document.getElementById('exp-description').value = '';
+        document.getElementById('exp-approved-amount').value = '';
+        document.getElementById('exp-actual-amount').value = '';
+      }
+
+      document.getElementById('expense-modal-overlay').classList.add('active');
+    }
+
+    function populateExpenseCategorySelect(teamName, selectedCat = '') {
+      const catSelect = document.getElementById('exp-category');
+      if (!teamName) {
+        catSelect.innerHTML = '<option value="">선택</option>';
+        return;
+      }
+      const team = state.teams.find(t => t.name === teamName);
+      if (!team) return;
+      const cats = state.categories[team.category] || [];
+      catSelect.innerHTML = '<option value="">선택</option>' +
+        cats.map(c => `<option value="${c}" ${c === selectedCat ? 'selected' : ''}>${c}</option>`).join('');
+    }
+
+    function closeExpenseModal() {
+      document.getElementById('expense-modal-overlay').classList.remove('active');
+    }
+
+    function saveExpense() {
+      const id = document.getElementById('expense-id').value;
+      const approvalDate = document.getElementById('exp-approval-date').value;
+      const team = document.getElementById('exp-team').value;
+      const category = document.getElementById('exp-category').value;
+      const description = document.getElementById('exp-description').value.trim();
+      const approvedAmount = parseInt(document.getElementById('exp-approved-amount').value) || 0;
+
+      if (!approvalDate || !team || !category || !description || !approvedAmount) {
+        showToast('필수 항목을 모두 입력해주세요.', 'error');
+        return;
+      }
+
+      const expData = {
+        approvalDate,
+        expenditureDate: document.getElementById('exp-expenditure-date').value || '',
+        team,
+        category,
+        description,
+        approvedAmount,
+        actualAmount: parseInt(document.getElementById('exp-actual-amount').value) || 0,
+        attachmentName: '',
+      };
+
+      // Handle file attachment
+      const fileInput = document.getElementById('exp-attachment');
+      if (fileInput.files.length > 0) {
+        expData.attachmentName = fileInput.files[0].name;
+      }
+
+      if (id) {
+        const idx = state.expenses.findIndex(e => e.id === id);
+        if (idx >= 0) {
+          if (!expData.attachmentName && state.expenses[idx].attachmentName) {
+            expData.attachmentName = state.expenses[idx].attachmentName;
+          }
+          state.expenses[idx] = { ...state.expenses[idx], ...expData };
+        }
+        showToast('지출 내역이 수정되었습니다.', 'success');
+      } else {
+        expData.id = genId();
+        state.expenses.push(expData);
+        showToast('지출 내역이 등록되었습니다.', 'success');
+
+        // Remove linked file from uploaded files list
+        const fileId = document.getElementById('expense-file-id').value;
+        if (fileId) {
+          state.uploadedFiles = state.uploadedFiles.filter(f => f.id !== fileId);
+          renderUploadedFiles();
+        }
+      }
+
+      saveState();
+      closeExpenseModal();
+      renderExpenses();
+      renderDashboard();
+    }
+
+    function editExpense(id) {
+      openExpenseModal(id);
+    }
+
+    function confirmDeleteExpense(id) {
+      openConfirm('정말로 이 지출 내역을 삭제하시겠습니까?', () => {
+        state.expenses = state.expenses.filter(e => e.id !== id);
+        saveState();
+        renderExpenses();
+        renderDashboard();
+        showToast('지출 내역이 삭제되었습니다.', 'info');
+      });
+    }
+
+    // ===== FILE UPLOAD =====
+    function setupUpload() {
+      const zone = document.getElementById('upload-zone');
+      const fileInput = document.getElementById('file-input');
+
+      zone.addEventListener('click', () => fileInput.click());
+      zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
+      zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+      zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('dragover');
+        handleFiles(e.dataTransfer.files);
+      });
+      fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+    }
+
+    function handleFiles(files) {
+      for (const file of files) {
+        const fileRecord = {
+          id: 'f' + Date.now() + Math.random().toString(36).substr(2, 4),
+          name: file.name,
+          size: file.size,
+          type: file.type || getFileExtension(file.name),
+          uploadedAt: new Date().toISOString(),
+          linkedExpenseId: null,
+          parsedData: null
+        };
+        state.uploadedFiles.push(fileRecord);
+
+        if (file.name.toLowerCase().endsWith('.pdf')) {
+          parsePdfFile(file, fileRecord.id);
+        }
+      }
+      saveState();
+      renderUploadedFiles();
+      showToast(`${files.length}개 파일이 업로드되었습니다.`, 'success');
+    }
+
+    function parsePdfFile(file, recordId) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const typedarray = new Uint8Array(e.target.result);
+        
+        pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+          let maxPages = pdf.numPages;
+          let countPromises = [];
+          
+          for (let j = 1; j <= maxPages; j++) {
+            countPromises.push(
+              pdf.getPage(j).then(page => {
+                return page.getTextContent().then(textContent => {
+                  return textContent.items.map(item => item.str).join(' ');
+                });
+              })
+            );
+          }
+          
+          Promise.all(countPromises).then(pageTexts => {
+            const text = pageTexts.join('\n');
+            const fileRecord = state.uploadedFiles.find(f => f.id === recordId);
+            if (fileRecord) {
+              const amount = extractAmount(text);
+              const date = extractDate(text);
+              const description = extractDescription(text);
+              const matchedTeam = matchTeam(text, file.name);
+              const category = matchedTeam ? matchCategory(text, matchedTeam.category) : '';
+              
+              fileRecord.parsedData = {
+                amount: amount,
+                date: date,
+                description: description,
+                teamName: matchedTeam ? matchedTeam.name : null,
+                category: category
+              };
+              
+              saveState();
+              renderUploadedFiles();
+              showToast(`"${file.name}" 파일에서 품의 정보를 성공적으로 추출했습니다.`, 'success');
+            }
+          }).catch(err => {
+            console.error('Error extracting text from PDF:', err);
+            showToast('텍스트 추출 에러: ' + err.message, 'error');
+          });
+        }).catch(err => {
+          console.error('Error loading PDF document:', err);
+          showToast('PDF 로드 에러: ' + err.message, 'error');
+        });
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function extractDate(text) {
+      const m1 = text.match(/품의일자\s*(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
+      if (m1) {
+        return `${m1[1]}-${String(m1[2]).padStart(2, '0')}-${String(m1[3]).padStart(2, '0')}`;
+      }
+      const m2 = text.match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
+      if (m2) {
+        return `${m2[1]}-${String(m2[2]).padStart(2, '0')}-${String(m2[3]).padStart(2, '0')}`;
+      }
+      const m3 = text.match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (m3) return m3[0];
+      return '';
+    }
+
+    function extractAmount(text) {
+      const m1 = text.match(/품의금액\s*￦?\s*([0-9,]+)/);
+      if (m1) return parseInt(m1[1].replace(/,/g, '')) || 0;
+      const m2 = text.match(/금액:\s*([0-9,]+)\s*원/);
+      if (m2) return parseInt(m2[1].replace(/,/g, '')) || 0;
+      const m3 = text.match(/합\s*계\s*([0-9,]+)/);
+      if (m3) return parseInt(m3[1].replace(/,/g, '')) || 0;
+      return 0;
+    }
+
+    function extractItems(text) {
+      const startIdx = text.indexOf('<품목내역>');
+      const altStartIdx = text.indexOf('<품목 내역>');
+      const idx = startIdx !== -1 ? startIdx : altStartIdx;
+      if (idx === -1) return '';
+
+      const subText = text.substring(idx);
+      const endIdx = subText.search(/합\s*계|결\s*재|요구자/);
+      const itemsText = endIdx !== -1 ? subText.substring(0, endIdx) : subText;
+
+      const lines = itemsText.split('\n');
+      const items = [];
+
+      for (let line of lines) {
+        line = line.trim();
+        if (!line || line.includes('<품목내역>') || line.includes('<품목 내역>') || line.includes('순번')) continue;
+
+        const match = line.match(/^(\d+(?:-\d+)?)\s+(.+)$/);
+        if (match) {
+          const rest = match[2].trim();
+          const nameMatch = rest.match(/^(.+?)\s+(?:\d+)\s+(?:[0-9,]+)\s+(?:[0-9,]+)/);
+          if (nameMatch) {
+            items.push(nameMatch[1].trim());
+          } else {
+            const backupMatch = rest.match(/^(.+?)\s+[0-9,\s]+$/);
+            if (backupMatch) {
+              items.push(backupMatch[1].trim());
+            } else {
+              items.push(rest);
+            }
+          }
+        }
+      }
+
+      if (items.length === 0) return '';
+      if (items.length <= 3) {
+        return items.join(', ');
+      }
+      return `${items.slice(0, 3).join(', ')} 외 ${items.length - 3}건`;
+    }
+
+    function extractDescription(text) {
+      const m1 = text.match(/제\s*목\s+(.*)/);
+      let title = '';
+      if (m1) {
+        title = m1[1].trim();
+      } else {
+        const m2 = text.match(/가\.\s*품명:\s*(.*)/);
+        if (m2) title = m2[1].trim();
+      }
+
+      if (!title) return '';
+
+      const itemSummary = extractItems(text);
+      if (itemSummary) {
+        return `${title} (${itemSummary})`;
+      }
+      return title;
+    }
+
+    function matchTeam(text, filename) {
+      const cleanFilename = filename.replace(/\s+/g, '').toLowerCase();
+      for (const team of state.teams) {
+        const cleanTeamName = team.name.replace(/\s+/g, '').toLowerCase();
+        if (cleanFilename.includes(cleanTeamName) || cleanTeamName.includes(cleanFilename)) {
+          return team;
+        }
+        const numMatch = team.name.match(/\d+/);
+        if (numMatch) {
+          const num = numMatch[0];
+          const baseName = team.name.replace(/\d+팀?/g, '').trim().toLowerCase();
+          if (cleanFilename.includes(baseName + num) || cleanFilename.includes(baseName + ' ' + num)) {
+            return team;
+          }
+        }
+      }
+      
+      for (const team of state.teams) {
+        if (team.members && team.members.length > 0) {
+          for (const member of team.members) {
+            if (text.includes(member)) {
+              return team;
+            }
+          }
+        }
+      }
+      return null;
+    }
+
+    function matchCategory(text, teamCategory) {
+      if (!teamCategory) return '';
+      const cats = state.categories[teamCategory] || [];
+      for (const cat of cats) {
+        if (text.includes(cat)) return cat;
+      }
+      if (text.includes('재료') || text.includes('재료비')) {
+        if (cats.includes('재료비')) return '재료비';
+      }
+      if (text.includes('식사') || text.includes('식대') || text.includes('식비')) {
+        if (cats.includes('식비')) return '식비';
+      }
+      if (text.includes('회의') || text.includes('회의비')) {
+        if (cats.includes('회의비')) return '회의비';
+      }
+      if (text.includes('인쇄') || text.includes('소모품') || text.includes('용품') || text.includes('사무용품')) {
+        if (cats.includes('사무용품비')) return '사무용품비';
+      }
+      if (text.includes('소프트웨어') || text.includes('프로그램') || text.includes('라이센스')) {
+        if (cats.includes('소프트웨어 활용')) return '소프트웨어 활용';
+      }
+      return cats[0] || '';
+    }
+
+    function getFileExtension(name) {
+      return name.split('.').pop().toUpperCase();
+    }
+
+    function getFileIcon(name) {
+      const ext = name.split('.').pop().toLowerCase();
+      const icons = {
+        pdf: '📕', hwp: '📘', xlsx: '📗', xls: '📗',
+        doc: '📓', docx: '📓', jpg: '🖼', jpeg: '🖼',
+        png: '🖼', gif: '🖼',
+      };
+      return icons[ext] || '📄';
+    }
+
+    function formatFileSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1048576).toFixed(1) + ' MB';
+    }
+
+    function renderUploadedFiles() {
+      const list = document.getElementById('file-list');
+      if (state.uploadedFiles.length === 0) {
+        list.innerHTML = '<div class="empty-state" style="padding:30px;"><p>업로드된 파일이 없습니다.</p></div>';
+        return;
+      }
+
+      list.innerHTML = state.uploadedFiles.map(f => {
+        const teamObj = f.parsedData && f.parsedData.teamName ? state.teams.find(t => t.name === f.parsedData.teamName) : null;
+        return `
+          <div class="file-item" style="flex-direction:column;align-items:stretch;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="file-icon">${getFileIcon(f.name)}</div>
+              <div class="file-info" style="flex:1;">
+                <div class="file-name" style="font-weight:600;">${f.name}</div>
+                <div class="file-meta">${formatFileSize(f.size)} · ${new Date(f.uploadedAt).toLocaleDateString('ko-KR')}</div>
+              </div>
+              <button class="btn btn-sm btn-secondary" onclick="linkFileToExpense('${f.id}')">지출 연결</button>
+              <button class="btn-icon" onclick="removeFile('${f.id}')" title="삭제">🗑</button>
+            </div>
+            ${f.parsedData ? `
+              <div style="background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.08);border-radius:var(--radius-xs);padding:8px 12px;font-size:0.78rem;display:flex;flex-wrap:wrap;gap:8px 14px;color:var(--text-secondary);">
+                <div>📅 <strong>일자:</strong> ${f.parsedData.date || '-'}</div>
+                <div>💰 <strong>금액:</strong> ${f.parsedData.amount ? fmtWon(f.parsedData.amount) : '-'}</div>
+                <div>👥 <strong>매칭 팀:</strong> ${f.parsedData.teamName ? `<span class="badge ${getBadgeClass(teamObj?.category)}" style="font-size:0.7rem;padding:2px 6px;margin-left:4px;">${f.parsedData.teamName}</span>` : '<span style="color:var(--danger);">팀 매칭 실패</span>'}</div>
+                <div>🏷️ <strong>지출 항목:</strong> ${f.parsedData.category ? `<span class="tag tag-${getCatClassForType(teamObj?.category || '', f.parsedData.category)}">${f.parsedData.category}</span>` : '-'}</div>
+                <div style="width:100%;word-break:break-all;border-top:1px solid rgba(255,255,255,0.04);padding-top:4px;">📝 <strong>내용:</strong> ${f.parsedData.description || '-'}</div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function linkFileToExpense(fileId) {
+      const file = state.uploadedFiles.find(f => f.id === fileId);
+      if (!file) return;
+      
+      openExpenseModal();
+      document.getElementById('expense-file-id').value = fileId;
+      
+      setTimeout(() => {
+        if (file.parsedData) {
+          const data = file.parsedData;
+          if (data.date) document.getElementById('exp-approval-date').value = data.date;
+          if (data.teamName) {
+            document.getElementById('exp-team').value = data.teamName;
+            populateExpenseCategorySelect(data.teamName, data.category || '');
+          }
+          if (data.description) document.getElementById('exp-description').value = data.description;
+          if (data.amount) {
+            document.getElementById('exp-approved-amount').value = data.amount;
+            document.getElementById('exp-actual-amount').value = data.amount;
+          }
+        } else {
+          const descEl = document.getElementById('exp-description');
+          if (!descEl.value) {
+            descEl.value = file.name.replace(/\.[^.]+$/, '');
+          }
+        }
+      }, 150);
+    }
+
+    function removeFile(fileId) {
+      openConfirm('이 파일을 삭제하시겠습니까?', () => {
+        state.uploadedFiles = state.uploadedFiles.filter(f => f.id !== fileId);
+        saveState();
+        renderUploadedFiles();
+        showToast('파일이 삭제되었습니다.', 'info');
+      });
+    }
+
+    // ===== REPORTS (정산서) =====
+    function isExpenseInReportPeriod(exp, period) {
+      if (period === 'all') return true;
+
+      const dateValue = exp.expenditureDate || exp.approvalDate;
+      if (!dateValue) return false;
+
+      const [year, month] = dateValue.split('-').map(Number);
+      if (period === '2026-1') return year === 2026 && month >= 1 && month <= 6;
+      if (period === '2026-2') return year === 2026 && month >= 7 && month <= 12;
+      return true;
+    }
+
+    function generateReport() {
+      const teamName = document.getElementById('report-team').value;
+      const period = document.getElementById('report-period').value;
+      const periodLabels = {
+        all: '전체 기간',
+        '2026-1': '2026년 1학기',
+        '2026-2': '2026년 2학기',
+      };
+      if (!teamName) {
+        showToast('팀을 선택해주세요.', 'error');
+        return;
+      }
+      const team = state.teams.find(t => t.name === teamName);
+      if (!team) return;
+
+      const teamExpenses = state.expenses
+        .filter(e => e.team === teamName)
+        .filter(e => isExpenseInReportPeriod(e, period))
+        .sort((a, b) => (a.approvalDate || '').localeCompare(b.approvalDate || ''));
+
+      const cats = state.categories[team.category] || [];
+
+      // Build budget summary table
+      let budgetRows = cats.map(cat => {
+        const budget = team.budgets[cat] || 0;
+        const spent = teamExpenses
+          .filter(e => e.category === cat)
+          .reduce((sum, e) => sum + getReflected(e), 0);
+        const balance = budget - spent;
+        return `
+          <tr>
+            <td>${cat}</td>
+            <td class="text-right">${fmt(budget)}</td>
+            <td class="text-right">${fmt(spent)}</td>
+            <td class="text-right">${fmt(balance)}</td>
+          </tr>
+        `;
+      }).join('');
+
+      const totalBudget = getTeamTotalBudget(team);
+      const totalSpent = teamExpenses.reduce((sum, e) => sum + getReflected(e), 0);
+      const totalBalance = totalBudget - totalSpent;
+
+      budgetRows += `
+        <tr style="font-weight:700;background:#d1d5db;">
+          <td>합계</td>
+          <td class="text-right">${fmt(totalBudget)}</td>
+          <td class="text-right">${fmt(totalSpent)}</td>
+          <td class="text-right">${fmt(totalBalance)}</td>
+        </tr>
+      `;
+
+      // Build expense detail table
+      let expRows = '';
+      if (teamExpenses.length > 0) {
+        expRows = teamExpenses.map((e, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${e.approvalDate || ''}</td>
+            <td>${e.expenditureDate || ''}</td>
+            <td>${e.category}</td>
+            <td class="text-left">${e.description}</td>
+            <td class="text-right">${fmt(e.approvedAmount)}</td>
+            <td class="text-right">${e.actualAmount ? fmt(e.actualAmount) : '-'}</td>
+            <td class="text-right">${fmt(getReflected(e))}</td>
+          </tr>
+        `).join('');
+      } else {
+        expRows = '<tr><td colspan="8" style="padding:20px;color:#999;">지출 내역 없음</td></tr>';
+      }
+
+      const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      document.getElementById('report-content').innerHTML = `
+        <div class="report-preview" id="report-printable">
+          <h3>연구지도 예산 정산서</h3>
+          <table style="width:auto;margin-bottom:24px;">
+            <tr><td style="background:#e5e7eb;font-weight:600;width:100px;">팀명</td><td style="width:200px;">${team.name}</td>
+                <td style="background:#e5e7eb;font-weight:600;width:100px;">구분</td><td style="width:200px;">${team.category}</td></tr>
+            <tr><td style="background:#e5e7eb;font-weight:600;">팀원</td><td colspan="3" style="text-align:left;">${team.members && team.members.length > 0 ? team.members.join(', ') : ''}</td></tr>
+            <tr><td style="background:#e5e7eb;font-weight:600;">기간</td><td colspan="3" style="text-align:left;">${periodLabels[period] || '전체 기간'}</td></tr>
+            <tr><td style="background:#e5e7eb;font-weight:600;">정산일</td><td>${today}</td>
+                <td style="background:#e5e7eb;font-weight:600;">작성자</td><td></td></tr>
+          </table>
+
+          <p style="font-weight:600;margin-bottom:8px;">1. 예산 집행 요약</p>
+          <table>
+            <thead>
+              <tr><th>항목</th><th>배정예산</th><th>집행액</th><th>잔액</th></tr>
+            </thead>
+            <tbody>${budgetRows}</tbody>
+          </table>
+
+          <p style="font-weight:600;margin:24px 0 8px;">2. 세부 지출 내역</p>
+          <table>
+            <thead>
+              <tr><th>No</th><th>품의일</th><th>지출일</th><th>항목</th><th>적요/내역</th><th>품의금액</th><th>실제지출</th><th>반영금액</th></tr>
+            </thead>
+            <tbody>${expRows}</tbody>
+          </table>
+
+          <div class="report-footer">
+            <div>
+              <p style="margin-bottom:8px;">※ 본 정산서는 연구지도 예산관리 시스템에서 자동 생성되었습니다.</p>
+              <p style="font-size:0.8rem;color:#666;">생성일시: ${new Date().toLocaleString('ko-KR')}</p>
+            </div>
+            <div style="text-align:center;">
+              <div style="width:120px;height:60px;border-bottom:1px solid #333;margin-bottom:4px;"></div>
+              <span style="font-size:0.82rem;">지도교사 확인</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function printReport() {
+      const reportEl = document.getElementById('report-printable');
+      if (!reportEl) {
+        showToast('먼저 정산서를 생성해주세요.', 'error');
+        return;
+      }
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <!DOCTYPE html><html><head><meta charset="UTF-8"><title>정산서 인쇄</title>
+        <style>
+          body { font-family: 'Noto Sans KR', sans-serif; padding: 20px; color: #111; }
+          table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+          th, td { border: 1px solid #333; padding: 8px 12px; font-size: 12px; text-align: center; }
+          th { background: #e5e7eb; font-weight: 600; }
+          .text-left { text-align: left; }
+          .text-right { text-align: right; }
+          h3 { text-align: center; border-bottom: 2px solid #111; padding-bottom: 12px; }
+          .report-footer { display: flex; justify-content: space-between; margin-top: 32px; }
+          @media print { body { padding: 0; } }
+        </style></head><body>
+        ${reportEl.innerHTML}
+        <script>window.print();window.close();<\/script>
+        </body></html>
+      `);
+      printWindow.document.close();
+    }
+
+    // ===== SETTINGS =====
+    function renderSettings() {
+      renderTeamManageList();
+      renderCategoryManage();
+      renderBudgetEditTable();
+    }
+
+    function renderTeamManageList() {
+      const list = document.getElementById('team-manage-list');
+      list.innerHTML = state.teams.map(t => {
+        const memStr = t.members && t.members.length > 0 ? ` (${t.members.join(', ')})` : '';
+        return `
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-glass);border-radius:var(--radius-xs);margin-bottom:8px;">
+            <span class="badge ${getBadgeClass(t.category)}" style="font-size:0.72rem;">${t.category}</span>
+            <span style="flex:1;font-weight:500;">${t.name}<span style="font-size:0.8rem;color:var(--text-secondary);font-weight:400;">${memStr}</span></span>
+            <button class="btn-icon" onclick="openEditTeamModal('${t.id}')" title="편집">✏️</button>
+            <button class="btn-icon" onclick="confirmDeleteTeam('${t.id}')" title="삭제" style="color:var(--danger);">🗑</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderCategoryManage() {
+      const container = document.getElementById('category-manage-container');
+      const types = ['전람회', 'RnE', '스팀클럽'];
+      
+      container.innerHTML = types.map(type => {
+        const cats = state.categories[type] || [];
+        const catBadges = cats.map(c => `
+          <div style="display:inline-flex;align-items:center;gap:6px;background:var(--bg-glass);border:1px solid var(--border);border-radius:var(--radius-xs);padding:6px 12px;margin:4px;">
+            <span style="font-weight:500;font-size:0.85rem;">${c}</span>
+            <button onclick="openRenameCategoryModal('${type}', '${c}')" style="background:none;border:none;cursor:pointer;font-size:0.8rem;color:var(--text-secondary);padding:0;" title="이름 변경">✏️</button>
+            <button onclick="confirmDeleteCategory('${type}', '${c}')" style="background:none;border:none;cursor:pointer;font-size:0.8rem;color:var(--danger);padding:0;" title="삭제">🗑</button>
+          </div>
+        `).join('');
+        
+        return `
+          <div style="margin-bottom:16px;padding:12px;background:var(--bg-glass);border-radius:var(--radius-sm);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <span class="badge ${getBadgeClass(type)}" style="font-size:0.75rem;">${type}</span>
+              <button class="btn btn-sm btn-primary" onclick="openAddCategoryModal('${type}')">+ 항목 추가</button>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;">
+              ${catBadges.length > 0 ? catBadges : '<span style="font-size:0.82rem;color:var(--text-muted);padding:4px;">항목이 없습니다.</span>'}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderBudgetEditTable() {
+      const container = document.getElementById('budget-edit-tables-container');
+      const types = ['전람회', 'RnE', '스팀클럽'];
+      
+      container.innerHTML = types.map(type => {
+        const typeTeams = state.teams.filter(t => t.category === type);
+        if (typeTeams.length === 0) return '';
+        
+        const cats = state.categories[type] || [];
+        const headerCols = cats.map(c => `<th>${c}</th>`).join('');
+        
+        const rows = typeTeams.map(t => {
+          const inputs = cats.map(c => {
+            const val = t.budgets[c] || 0;
+            return `<td><input type="number" id="budget-${t.id}-${c}" value="${val}" min="0" step="10000"></td>`;
+          }).join('');
+          
+          return `
+            <tr>
+              <td style="text-align:left;font-weight:500;">${t.name}</td>
+              ${inputs}
+              <td style="font-weight:600;">${fmt(getTeamTotalBudget(t))}</td>
+            </tr>
+          `;
+        }).join('');
+        
+        return `
+          <div style="margin-bottom: 24px;">
+            <h4 style="margin-bottom:8px;font-size:0.95rem;color:var(--accent);display:flex;align-items:center;gap:8px;">
+              <span class="badge ${getBadgeClass(type)}" style="font-size:0.75rem;">${type}</span> 예산 설정
+            </h4>
+            <table class="budget-edit-table">
+              <thead>
+                <tr><th style="text-align:left;width:160px;">팀명</th>${headerCols}<th>합계</th></tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function saveBudgetSettings() {
+      state.teams.forEach(t => {
+        const cats = state.categories[t.category] || [];
+        cats.forEach(c => {
+          const inputEl = document.getElementById(`budget-${t.id}-${c}`);
+          if (inputEl) {
+            t.budgets[c] = parseInt(inputEl.value) || 0;
+          }
+        });
+      });
+      saveState();
+      renderSettings();
+      renderDashboard();
+      showToast('예산이 저장되었습니다.', 'success');
+    }
+
+    // ===== CATEGORY MANAGEMENT =====
+    function openAddCategoryModal(type) {
+      document.getElementById('category-modal-title').textContent = `${type} - 항목 추가`;
+      document.getElementById('cat-edit-type').value = type;
+      document.getElementById('cat-display-type').value = type;
+      document.getElementById('cat-old-name').value = '';
+      document.getElementById('cat-name').value = '';
+      document.getElementById('category-modal-overlay').classList.add('active');
+    }
+
+    function openRenameCategoryModal(type, oldName) {
+      document.getElementById('category-modal-title').textContent = `${type} - 항목 이름 변경`;
+      document.getElementById('cat-edit-type').value = type;
+      document.getElementById('cat-display-type').value = type;
+      document.getElementById('cat-old-name').value = oldName;
+      document.getElementById('cat-name').value = oldName;
+      document.getElementById('category-modal-overlay').classList.add('active');
+    }
+
+    function closeCategoryModal() {
+      document.getElementById('category-modal-overlay').classList.remove('active');
+    }
+
+    function saveCategoryModal() {
+      const type = document.getElementById('cat-edit-type').value;
+      const oldName = document.getElementById('cat-old-name').value;
+      const newName = document.getElementById('cat-name').value.trim();
+
+      if (!newName) {
+        showToast('항목명을 입력해주세요.', 'error');
+        return;
+      }
+
+      const cats = state.categories[type] || [];
+
+      if (oldName) {
+        if (oldName === newName) {
+          closeCategoryModal();
+          return;
+        }
+        if (cats.includes(newName)) {
+          showToast('이미 존재하는 항목명입니다.', 'error');
+          return;
+        }
+        
+        const idx = cats.indexOf(oldName);
+        if (idx >= 0) cats[idx] = newName;
+
+        state.teams.forEach(t => {
+          if (t.category === type) {
+            if (t.budgets[oldName] !== undefined) {
+              t.budgets[newName] = t.budgets[oldName];
+              delete t.budgets[oldName];
+            }
+          }
+        });
+
+        state.expenses.forEach(e => {
+          const team = state.teams.find(t => t.name === e.team);
+          if (team && team.category === type && e.category === oldName) {
+            e.category = newName;
+          }
+        });
+
+        showToast(`항목명이 "${oldName}" → "${newName}"(으)로 변경되었습니다.`, 'success');
+      } else {
+        if (cats.includes(newName)) {
+          showToast('이미 존재하는 항목명입니다.', 'error');
+          return;
+        }
+        cats.push(newName);
+
+        state.teams.forEach(t => {
+          if (t.category === type) {
+            t.budgets[newName] = 0;
+          }
+        });
+
+        showToast(`"${newName}" 항목이 추가되었습니다.`, 'success');
+      }
+
+      saveState();
+      closeCategoryModal();
+      renderSettings();
+      renderDashboard();
+    }
+
+    function confirmDeleteCategory(type, catName) {
+      const relatedExpenses = state.expenses.filter(e => {
+        const team = state.teams.find(t => t.name === e.team);
+        return team && team.category === type && e.category === catName;
+      });
+
+      const expCount = relatedExpenses.length;
+      const msg = expCount > 0
+        ? `"${catName}" 항목을 삭제하시겠습니까?\n이 항목에 연결된 지출 내역 ${expCount}건도 함께 삭제됩니다.`
+        : `"${catName}" 항목을 삭제하시겠습니까?`;
+
+      openConfirm(msg, () => {
+        state.categories[type] = (state.categories[type] || []).filter(c => c !== catName);
+
+        state.teams.forEach(t => {
+          if (t.category === type) {
+            delete t.budgets[catName];
+          }
+        });
+
+        state.expenses = state.expenses.filter(e => {
+          const team = state.teams.find(t => t.name === e.team);
+          const isRelated = team && team.category === type && e.category === catName;
+          return !isRelated;
+        });
+
+        saveState();
+        renderSettings();
+        renderDashboard();
+        showToast(`"${catName}" 항목이 삭제되었습니다.`, 'info');
+      });
+    }
+
+    // ===== TEAM MANAGEMENT =====
+    function openAddTeamModal() {
+      document.getElementById('team-modal-title').textContent = '팀 추가';
+      document.getElementById('team-edit-id').value = '';
+      document.getElementById('team-edit-category').value = '전람회';
+      document.getElementById('team-edit-name').value = '';
+      document.getElementById('team-edit-member-1').value = '';
+      document.getElementById('team-edit-member-2').value = '';
+      document.getElementById('team-edit-member-3').value = '';
+      document.getElementById('team-edit-member-4').value = '';
+      document.getElementById('team-modal-overlay').classList.add('active');
+    }
+
+    function openEditTeamModal(teamId) {
+      const team = state.teams.find(t => t.id === teamId);
+      if (!team) return;
+      document.getElementById('team-modal-title').textContent = '팀 편집';
+      document.getElementById('team-edit-id').value = teamId;
+      document.getElementById('team-edit-category').value = team.category;
+      document.getElementById('team-edit-name').value = team.name;
+      const m = team.members || [];
+      document.getElementById('team-edit-member-1').value = m[0] || '';
+      document.getElementById('team-edit-member-2').value = m[1] || '';
+      document.getElementById('team-edit-member-3').value = m[2] || '';
+      document.getElementById('team-edit-member-4').value = m[3] || '';
+      document.getElementById('team-modal-overlay').classList.add('active');
+    }
+
+    function closeTeamModal() {
+      document.getElementById('team-modal-overlay').classList.remove('active');
+    }
+
+    function saveTeamModal() {
+      const id = document.getElementById('team-edit-id').value;
+      const category = document.getElementById('team-edit-category').value;
+      const name = document.getElementById('team-edit-name').value.trim();
+      const members = [
+        document.getElementById('team-edit-member-1').value.trim(),
+        document.getElementById('team-edit-member-2').value.trim(),
+        document.getElementById('team-edit-member-3').value.trim(),
+        document.getElementById('team-edit-member-4').value.trim(),
+      ].filter(m => m !== '');
+
+      if (!name) {
+        showToast('팀 이름을 입력해주세요.', 'error');
+        return;
+      }
+
+      if (id) {
+        // Edit existing team
+        const team = state.teams.find(t => t.id === id);
+        if (team) {
+          const oldName = team.name;
+          const oldCategory = team.category;
+          const oldBudgets = team.budgets || {};
+          team.name = name;
+          team.category = category;
+          team.members = members;
+          team.budgets = normalizeBudgets(category, members, oldCategory === category ? oldBudgets : {});
+          // Update expense references
+          state.expenses.forEach(e => {
+            if (e.team === oldName) e.team = name;
+          });
+          showToast(`"${oldName}" → "${name}" 변경 완료`, 'success');
+        }
+      } else {
+        // Add new team
+        const newId = 't' + Date.now();
+        const newTeam = {
+          id: newId,
+          category: category,
+          name: name,
+          members: members,
+          budgets: normalizeBudgets(category, members),
+        };
+
+        state.teams.push(newTeam);
+        showToast(`"${name}" 팀이 추가되었습니다.`, 'success');
+      }
+
+      saveState();
+      closeTeamModal();
+      renderSettings();
+      populateReportTeamSelect();
+      renderDashboard();
+    }
+
+    function confirmDeleteTeam(teamId) {
+      const team = state.teams.find(t => t.id === teamId);
+      if (!team) return;
+      const expCount = state.expenses.filter(e => e.team === team.name).length;
+      const msg = expCount > 0
+        ? `"${team.name}"을(를) 삭제하시겠습니까?\n이 팀에 연결된 지출 ${expCount}건도 함께 삭제됩니다.`
+        : `"${team.name}"을(를) 삭제하시겠습니까?`;
+      openConfirm(msg, () => {
+        state.expenses = state.expenses.filter(e => e.team !== team.name);
+        state.teams = state.teams.filter(t => t.id !== teamId);
+        saveState();
+        renderSettings();
+        populateReportTeamSelect();
+        renderDashboard();
+        showToast(`"${team.name}" 팀이 삭제되었습니다.`, 'info');
+      });
+    }
+
+    // ===== DATA IMPORT/EXPORT =====
+    function exportData() {
+      const data = {
+        version: '1.0',
+        exportedAt: new Date().toISOString(),
+        teams: state.teams,
+        expenses: state.expenses,
+        uploadedFiles: state.uploadedFiles,
+        categories: state.categories,
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `연구지도_예산관리_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('데이터가 내보내기 되었습니다.', 'success');
+    }
+
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (data.teams) state.teams = data.teams;
+          if (data.expenses) state.expenses = data.expenses;
+          if (data.uploadedFiles) state.uploadedFiles = data.uploadedFiles;
+          if (data.categories) state.categories = data.categories;
+          saveState();
+          populateReportTeamSelect();
+          renderDashboard();
+          renderExpenses();
+          renderUploadedFiles();
+          renderSettings();
+          showToast('데이터를 성공적으로 가져왔습니다.', 'success');
+        } catch {
+          showToast('잘못된 파일 형식입니다.', 'error');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    function confirmResetData() {
+      openConfirm('모든 데이터를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.', () => {
+        localStorage.removeItem(STORAGE_KEY);
+        initDefaultState();
+        switchView('dashboard');
+        showToast('데이터가 초기화되었습니다.', 'info');
+      });
+    }
+
+    // ===== CONFIRM DIALOG =====
+    let confirmCallback = null;
+    function openConfirm(message, callback) {
+      document.getElementById('confirm-message').textContent = message;
+      confirmCallback = callback;
+      document.getElementById('confirm-overlay').classList.add('active');
+    }
+    function closeConfirm() {
+      document.getElementById('confirm-overlay').classList.remove('active');
+      confirmCallback = null;
+    }
+    document.getElementById('confirm-ok-btn').addEventListener('click', () => {
+      if (confirmCallback) confirmCallback();
+      closeConfirm();
+    });
+
+    // ===== TOAST =====
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(40px)';
+        toast.style.transition = '0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // ===== INIT =====
+    function populateReportTeamSelect() {
+      const sel = document.getElementById('report-team');
+      sel.innerHTML = '<option value="">-- 팀 선택 --</option>' +
+        state.teams.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+    }
+
+    function init() {
+      loadState();
+      populateReportTeamSelect();
+      setupUpload();
+
+      // Nav events
+      document.querySelectorAll('.nav-menu li').forEach(li => {
+        li.addEventListener('click', () => {
+          const view = li.dataset.view;
+          if (view) switchView(view);
+          // Close mobile menu
+          document.getElementById('sidebar').classList.remove('open');
+        });
+      });
+
+      // Filter events
+      document.getElementById('filter-team').addEventListener('change', renderExpenses);
+      document.getElementById('filter-category').addEventListener('change', renderExpenses);
+      document.getElementById('filter-search').addEventListener('input', renderExpenses);
+
+      // Modal change event
+      document.getElementById('exp-team').addEventListener('change', (e) => {
+        const currentCat = document.getElementById('exp-category').value;
+        populateExpenseCategorySelect(e.target.value, currentCat);
+      });
+
+      // Close modals on overlay click
+      document.getElementById('expense-modal-overlay').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeExpenseModal();
+      });
+      document.getElementById('team-detail-overlay').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeTeamDetail();
+      });
+      document.getElementById('team-modal-overlay').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeTeamModal();
+      });
+      document.getElementById('category-modal-overlay').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeCategoryModal();
+      });
+      document.getElementById('confirm-overlay').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeConfirm();
+      });
+
+      // ESC key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeExpenseModal();
+          closeTeamDetail();
+          closeTeamModal();
+          closeCategoryModal();
+          closeConfirm();
+        }
+      });
+
+      // Initial render
+      renderDashboard();
+    }
+
+    init();
+  </script>
+</body>
+</html>
